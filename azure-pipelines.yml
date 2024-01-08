@@ -26,17 +26,6 @@ schedules:
     - 201???
   always: true
 
-resources:
-  repositories:
-  - repository: sonic-sairedis
-    type: github
-    name: sonic-net/sonic-sairedis
-    endpoint: sonic-net
-  - repository: sonic-swss
-    type: github
-    name: sonic-net/sonic-swss
-    endpoint: sonic-net
-
 parameters:
   - name: debian_version
     type: string
@@ -96,70 +85,3 @@ stages:
       run_unit_test: true
       archive_gcov: true
       debian_version: ${{ parameters.debian_version }}
-
-- stage: BuildArm
-  dependsOn: Build
-  condition: succeeded('Build')
-  jobs:
-  - template: .azure-pipelines/build-template.yml
-    parameters:
-      arch: armhf
-      timeout: 180
-      pool: sonicbld-armhf
-      sonic_slave: sonic-slave-${{ parameters.debian_version }}-armhf:$(BUILD_BRANCH)
-      artifact_name: sonic-swss-common.armhf
-      debian_version: ${{ parameters.debian_version }}
-
-  - template: .azure-pipelines/build-template.yml
-    parameters:
-      arch: arm64
-      timeout: 180
-      pool: sonicbld-arm64
-      sonic_slave: sonic-slave-${{ parameters.debian_version }}-arm64:$(BUILD_BRANCH)
-      artifact_name: sonic-swss-common.arm64
-      debian_version: ${{ parameters.debian_version }}
-
-- stage: BuildSairedis
-  dependsOn: Build
-  condition: succeeded('Build')
-  jobs:
-  - template: .azure-pipelines/build-sairedis-template.yml
-    parameters:
-      arch: amd64
-      sonic_slave: sonic-slave-${{ parameters.debian_version }}:$(BUILD_BRANCH)
-      swss_common_artifact_name: sonic-swss-common
-      artifact_name: sonic-sairedis
-      syslog_artifact_name: sonic-sairedis.syslog
-      debian_version: ${{ parameters.debian_version }}
-
-- stage: BuildSwss
-  dependsOn: BuildSairedis
-  condition: succeeded('BuildSairedis')
-  jobs:
-  - template: .azure-pipelines/build-swss-template.yml
-    parameters:
-      arch: amd64
-      sonic_slave: sonic-slave-${{ parameters.debian_version }}:$(BUILD_BRANCH)
-      swss_common_artifact_name: sonic-swss-common
-      sairedis_artifact_name: sonic-sairedis
-      artifact_name: sonic-swss
-      debian_version: ${{ parameters.debian_version }}
-
-- stage: BuildDocker
-  dependsOn: BuildSwss
-  condition: succeeded('BuildSwss')
-  jobs:
-  - template: .azure-pipelines/build-docker-sonic-vs-template.yml
-    parameters:
-      swss_common_artifact_name: sonic-swss-common
-      sairedis_artifact_name: sonic-sairedis
-      swss_artifact_name: sonic-swss
-      artifact_name: docker-sonic-vs
-
-- stage: Test
-  dependsOn: BuildDocker
-  condition: succeeded('BuildDocker')
-  jobs:
-  - template: .azure-pipelines/test-docker-sonic-vs-template.yml
-    parameters:
-      log_artifact_name: log
