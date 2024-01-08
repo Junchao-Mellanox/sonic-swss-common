@@ -80,7 +80,7 @@ stages:
   - template: .azure-pipelines/build-template.yml
     parameters:
       arch: amd64
-      sonic_slave: sonic-slave-${{ parameters.debian_version }}:$(BUILD_BRANCH)
+      sonic_slave: sonic-slave-${{ parameters.debian_version }}:master
       artifact_name: sonic-swss-common
       run_unit_test: true
       archive_gcov: true
