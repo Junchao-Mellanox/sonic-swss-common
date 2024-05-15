@@ -56,6 +56,9 @@
 #include "zmqclient.h"
 #include "zmqconsumerstatetable.h"
 #include "zmqproducerstatetable.h"
+#ifdef SWIGPYTHON
+#include <Python.h>
+#endif
 %}
 
 %include <std_string.i>
@@ -96,7 +99,32 @@
             }
             ~PyThreadStateGuard()
             {
+%#if PY_MAJOR_VERSION >= 3
+%#if PY_MINOR_VERSION <= 13
+                // for python version between 3.5 and 3.13
+                // https://docs.python.org/3/c-api/init.html mentions that
+                // Note Calling this function from a thread when the runtime is finalizing will 
+                // terminate the thread, even if the thread was not created by Python. You can use 
+                // _Py_IsFinalizing() or sys.is_finalizing() to check if the interpreter is in process 
+                // of being finalized before calling this function to avoid unwanted termination.
+                if (!_Py_IsFinalizing())
+                {
+                    PyEval_RestoreThread(m_save);
+                }
+%#else
+                // for python version >= 3.13
+                // _Py_IsFinalizing has been removed in 3.13 and is replaced by Py_IsFinalizing
+                // Issue: https://github.com/python/cpython/issues/108014
+                // Fix: https://github.com/python/cpython/pull/108032
+                if (!Py_IsFinalizing())
+                {
+                    PyEval_RestoreThread(m_save);
+                }
+%#endif
+%#else
+                // for python version 2
                 PyEval_RestoreThread(m_save);
+%#endif
             }
         } thread_state_guard;
 
